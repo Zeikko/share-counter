@@ -5,23 +5,28 @@ class SharesController extends Controller
 
     public function actionTotal($url, $id)
     {
-        $page = Page::model()->findByAttributes(array('url' => $url));
-        if (!$page) {
-            $page = new Page();
-            $page->url = $url;
-            $page->created = time();
-            $page->client_id = $clientId;
-            $page->save();
+        $totals = Yii::app()->cache->get('totals-' . $url);
+        if (!$totals) {
+            $page = Page::model()->findByAttributes(array('url' => $url));
+            if (!$page) {
+                $page = new Page();
+                $page->url = $url;
+                $page->created = time();
+                $page->client_id = $id;
+                $page->save();
+            }
+            if ($page->updated < time() - (60 * 10)) {
+                $page->updateMetrics();
+            }
+            $totals = array(
+                'facebook' => $page->facebook_shares,
+                'twitter' => $page->twitter_tweets,
+                'linkedIn' => $page->linkedin_shares,
+                'all' => $page->shares_total,
+            );
+            Yii::app()->cache->set('totals-' . $url, $totals, 60 * 10);
         }
-        if ($page->updated < time() - (60 * 10)) {
-            $page->updateMetrics();
-        }
-        $this->outputJSON(array(
-            'facebook' => $page->facebook_shares,
-            'twitter' => $page->twitter_tweets,
-            'linkedIn' => $page->linkedin_shares,
-            'all' => $page->shares_total,
-        ));
+        $this->outputJSON($totals);
     }
 
     /**
@@ -35,8 +40,7 @@ class SharesController extends Controller
         if (isset($_GET['callback'])) {
             header('Content-Type: text/javascript');
             $output = $_GET['callback'] . '(' . $output . ');';
-        }
-        else {
+        } else {
             header('Content-Type: application/json');
         }
         echo $output;

@@ -1,4 +1,4 @@
-share-api
+share-counter
 =========
 
-share-api
+share-counter
